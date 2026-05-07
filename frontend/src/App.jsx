@@ -212,6 +212,184 @@ function buildAnalytics(entries, goal) {
     goalNumber >= chartDomain[0] &&
     goalNumber <= chartDomain[1];
 
+  let longestDropStreak = { count: 0, label: "Sem sequência suficiente" };
+  {
+    let currentStreak = 0;
+    let maxStreak = 0;
+
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i].weight < sorted[i - 1].weight) {
+        currentStreak += 1;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        currentStreak = 0;
+      }
+    }
+
+    if (maxStreak > 0) {
+      longestDropStreak = {
+        count: maxStreak,
+        label: `${maxStreak} ${maxStreak === 1 ? "queda consecutiva" : "quedas consecutivas"}`,
+      };
+    }
+  }
+
+  let currentVsPreviousMonth = { label: "Sem mês anterior para comparar" };
+  {
+    if (monthlyLosses.length >= 2) {
+      const current = monthlyLosses[monthlyLosses.length - 1];
+      const previous = monthlyLosses[monthlyLosses.length - 2];
+      const percent = Math.round(((current.value - previous.value) / previous.value) * 100);
+      const direction = percent >= 0 ? "acima" : "abaixo";
+
+      currentVsPreviousMonth = {
+        currentLabel: current.label,
+        previousLabel: previous.label,
+        currentValue: current.value,
+        previousValue: previous.value,
+        percent: percent,
+        label: `${Math.abs(percent)}% ${direction} do mês anterior`,
+      };
+    }
+  }
+
+  let last30DaysLoss = { value: null, label: "Dados insuficientes" };
+  {
+    const thirtyDaysAgo = toDate(last.date).getTime() - 30 * 86400000;
+    let referenceEntry = first;
+
+    for (let i = sorted.length - 1; i >= 0; i -= 1) {
+      const entryTime = toDate(sorted[i].date).getTime();
+      if (entryTime <= thirtyDaysAgo) {
+        referenceEntry = sorted[i];
+        break;
+      }
+    }
+
+    const loss = referenceEntry.weight - current;
+    if (loss > 0) {
+      last30DaysLoss = {
+        value: loss,
+        label: `-${formatNumber(loss)} kg nos últimos 30 dias`,
+      };
+    }
+  }
+
+  let goalProjection = { days: null, months: null, label: "Ritmo insuficiente para projetar" };
+  {
+    if (remaining !== null && remaining > 0 && last30DaysLoss.value !== null && last30DaysLoss.value > 0) {
+      const thirtyDaysAgo = toDate(last.date).getTime() - 30 * 86400000;
+      let dayCount = 30;
+
+      for (let i = sorted.length - 1; i >= 0; i -= 1) {
+        const entryTime = toDate(sorted[i].date).getTime();
+        if (entryTime <= thirtyDaysAgo) {
+          dayCount = Math.max(1, Math.round((toDate(last.date).getTime() - entryTime) / 86400000));
+          break;
+        }
+      }
+
+      const dailyRate = last30DaysLoss.value / dayCount;
+      const daysToGoal = Math.ceil(remaining / dailyRate);
+      const monthsToGoal = Math.round(daysToGoal / 30.44);
+
+      goalProjection = {
+        days: daysToGoal,
+        months: monthsToGoal,
+        label: `Meta em aproximadamente ${monthsToGoal} ${monthsToGoal === 1 ? "mês" : "meses"}`,
+      };
+    } else if (remaining !== null && remaining <= 0) {
+      goalProjection = {
+        days: 0,
+        months: 0,
+        label: "Meta já alcançada",
+      };
+    }
+  }
+
+  let bestWindow = { days: null, value: null, label: "Dados insuficientes" };
+  {
+    let bestLoss = null;
+    let bestPeriod = null;
+
+    for (const windowDays of WINDOWS) {
+      for (let i = sorted.length - 1; i >= 0; i -= 1) {
+        const endEntry = sorted[i];
+        const endTime = toDate(endEntry.date).getTime();
+        const targetTime = endTime - windowDays * 86400000;
+
+        let startEntry = null;
+        let closestDistance = Infinity;
+
+        for (let j = i - 1; j >= 0; j -= 1) {
+          const entryTime = toDate(sorted[j].date).getTime();
+          if (entryTime <= endTime) {
+            const distance = Math.abs(endTime - entryTime - windowDays * 86400000);
+            if (distance < closestDistance && entryTime <= targetTime) {
+              startEntry = sorted[j];
+              closestDistance = distance;
+            }
+          }
+        }
+
+        if (startEntry) {
+          const loss = startEntry.weight - endEntry.weight;
+          if (loss > 0 && (!bestLoss || loss > bestLoss)) {
+            bestLoss = loss;
+            bestPeriod = {
+              days: windowDays,
+              value: loss,
+              from: startEntry.date,
+              to: endEntry.date,
+            };
+          }
+        }
+      }
+    }
+
+    if (bestPeriod) {
+      bestWindow = {
+        ...bestPeriod,
+        label: `${bestPeriod.days} dias · -${formatNumber(bestPeriod.value)} kg`,
+      };
+    }
+  }
+
+  let currentMonthAverage = { monthLabel: null, value: null, label: "Sem dados" };
+  {
+    const currentMonthData = monthlyLosses.find((item) => item.key === currentMonthKey);
+    if (currentMonthData) {
+      const monthEntries = sorted.filter((entry) => getMonthKey(entry.date) === currentMonthKey);
+      if (monthEntries.length > 0) {
+        const avgWeight = monthEntries.reduce((sum, entry) => sum + entry.weight, 0) / monthEntries.length;
+        currentMonthAverage = {
+          monthLabel: currentMonthData.label,
+          value: avgWeight,
+          label: `Média de ${currentMonthData.label}: ${formatNumber(avgWeight)} kg`,
+        };
+      }
+    }
+  }
+
+  let trend = { type: "stable", value: 0, label: "Estabilidade" };
+  {
+    const recentCount = Math.min(5, sorted.length);
+    if (recentCount >= 2) {
+      const recentEntries = sorted.slice(sorted.length - recentCount);
+      const delta = recentEntries[0].weight - recentEntries[recentCount - 1].weight;
+
+      if (delta >= 2.0) {
+        trend = { type: "strong_down", value: delta, label: "Forte queda" };
+      } else if (delta >= 0.7) {
+        trend = { type: "moderate_down", value: delta, label: "Queda moderada" };
+      } else if (delta > -0.5 && delta < 0.7) {
+        trend = { type: "stable", value: delta, label: "Estabilidade" };
+      } else {
+        trend = { type: "up_alert", value: delta, label: "Alerta de subida" };
+      }
+    }
+  }
+
   return {
     sorted,
     first,
@@ -231,6 +409,13 @@ function buildAnalytics(entries, goal) {
     chartDomain,
     showGoalLine,
     days,
+    longestDropStreak,
+    currentVsPreviousMonth,
+    last30DaysLoss,
+    goalProjection,
+    bestWindow,
+    currentMonthAverage,
+    trend,
   };
 }
 
@@ -658,12 +843,8 @@ export default function App() {
 
               <div className="highlightList">
                 <div>
-                  <span>Melhor mês</span>
-                  <strong>
-                    {analytics.bestMonth
-                      ? `${analytics.bestMonth.label} · ${formatKg(analytics.bestMonth.value)}`
-                      : "—"}
-                  </strong>
+                  <span>Maior sequência de queda</span>
+                  <strong>{analytics.longestDropStreak.label}</strong>
                 </div>
 
                 <div>
@@ -678,8 +859,50 @@ export default function App() {
                 </div>
 
                 <div>
-                  <span>Período analisado</span>
-                  <strong>{analytics.days ? `${analytics.days} dias` : "—"}</strong>
+                  <span>Melhor janela</span>
+                  <strong>{analytics.bestWindow.label}</strong>
+                </div>
+
+                <div>
+                  <span>Melhor mês</span>
+                  <strong>
+                    {analytics.bestMonth
+                      ? `${analytics.bestMonth.label} · ${formatKg(analytics.bestMonth.value)}`
+                      : "—"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Peso médio mensal</span>
+                  <strong>{analytics.currentMonthAverage.label}</strong>
+                </div>
+
+                <div>
+                  <span>Tendência atual</span>
+                  <strong>{analytics.trend.label}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="sectionBlock">
+              <div className="subHeader">
+                <span>Ritmo e projeção</span>
+              </div>
+
+              <div className="highlightList">
+                <div>
+                  <span>Últimos 30 dias</span>
+                  <strong>{analytics.last30DaysLoss.label}</strong>
+                </div>
+
+                <div>
+                  <span>Mês atual vs anterior</span>
+                  <strong>{analytics.currentVsPreviousMonth.label}</strong>
+                </div>
+
+                <div>
+                  <span>Projeção até a meta</span>
+                  <strong>{analytics.goalProjection.label}</strong>
                 </div>
               </div>
             </div>

@@ -343,6 +343,8 @@ input:focus-visible {
 .insightsPanel {
   display: flex;
   flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 /* ── Panel / chart headers ──────────────────────────── */
@@ -682,10 +684,12 @@ input:focus-visible {
 }
 
 .highlightList strong {
-  color: var(--text-primary);
+  color: #f7f9fc;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .averageGrid {
