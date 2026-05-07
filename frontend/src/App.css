@@ -827,10 +827,37 @@ input:focus-visible {
   color: var(--text-primary);
 }
 
-.historyHeader button {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
+.historyActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exportButton {
+  height: 40px;
+  border-radius: 14px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #06100b;
+  background: linear-gradient(135deg, #89efbf, #57dfaa);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  transition: box-shadow var(--ease), transform 0.12s ease;
+  flex-shrink: 0;
+}
+
+.exportButton:hover {
+  box-shadow: 0 0 22px rgba(137, 239, 191, 0.28);
+  transform: translateY(-2px);
+}
+
+.closeButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
   color: var(--text-primary);
@@ -840,7 +867,7 @@ input:focus-visible {
   transition: background var(--ease), border-color var(--ease);
 }
 
-.historyHeader button:hover {
+.closeButton:hover {
   background: var(--surface-hover);
   border-color: var(--border-medium);
 }
@@ -1233,6 +1260,26 @@ input:focus-visible {
 
   .historyButton {
     display: none;
+  }
+
+  .historyHeader {
+    align-items: stretch;
+  }
+
+  .historyActions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+  }
+
+  .exportButton {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .closeButton {
+    width: 36px;
+    height: 36px;
   }
 
   .miniGrid,

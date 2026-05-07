@@ -24,6 +24,7 @@ import {
   Gauge,
   BarChart3,
   Sparkles,
+  Download,
 } from "lucide-react";
 import "./App.css";
 
@@ -370,6 +371,10 @@ export default function App() {
     } catch {
       setError("Erro ao salvar a meta.");
     }
+  }
+
+  function handleExportData() {
+    window.open("/api/export", "_blank");
   }
 
   return (
@@ -758,9 +763,16 @@ export default function App() {
                 <h2>Histórico de pesagens</h2>
               </div>
 
-              <button type="button" onClick={() => setHistoryOpen(false)}>
-                <X size={18} />
-              </button>
+              <div className="historyActions">
+                <button type="button" className="exportButton" onClick={handleExportData}>
+                  <Download size={15} />
+                  Exportar dados
+                </button>
+
+                <button type="button" className="closeButton" onClick={() => setHistoryOpen(false)}>
+                  <X size={18} />
+                </button>
+              </div>
             </header>
 
             <div className="historyTable">

@@ -174,6 +174,35 @@ app.put("/api/config", async (req, res) => {
   }
 });
 
+app.get("/api/export", async (req, res) => {
+  try {
+    const weights = await readWeights();
+    const config = await readConfig();
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const backup = {
+      app: "orbis-peso",
+      version: "1.0.0",
+      exportedAt: new Date().toISOString(),
+      config,
+      weights
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="orbis-peso-backup-${today}.json"`
+    );
+
+    res.json(backup);
+  } catch {
+    res.status(500).json({
+      message: "Erro ao exportar backup."
+    });
+  }
+});
+
 app.use(express.static(FRONTEND_DIST));
 
 app.get(/.*/, (req, res) => {
