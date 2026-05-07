@@ -118,6 +118,13 @@ function buildAnalytics(entries, goal) {
       chartDomain: ["auto", "auto"],
       showGoalLine: false,
       days: 0,
+      longestDropStreak: { count: 0, label: "Sem sequência suficiente" },
+      currentVsPreviousMonth: { label: "Sem mês anterior para comparar" },
+      last30DaysLoss: { value: null, label: "Dados insuficientes" },
+      goalProjection: { days: null, months: null, label: "Ritmo insuficiente para projetar" },
+      bestWindow: { days: null, value: null, label: "Dados insuficientes" },
+      currentMonthAverage: { monthLabel: null, value: null, label: "Sem dados" },
+      trend: { type: "stable", value: 0, label: "Estabilidade" },
     };
   }
 
