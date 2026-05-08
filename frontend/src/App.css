@@ -1359,3 +1359,261 @@ input:focus-visible {
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
+
+/* ── Measurements button ────────────────────────────── */
+.measurementsButton {
+  height: 34px;
+  border-radius: 12px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #06100b;
+  background: linear-gradient(135deg, #89efbf, #57dfaa);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  transition: box-shadow var(--ease), transform 0.12s ease;
+  margin-top: 8px;
+}
+
+.measurementsButton:hover {
+  box-shadow: 0 0 18px rgba(137, 239, 191, 0.28);
+  transform: translateY(-1px);
+}
+
+.measurementEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.measurementEmpty span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Measurements modal ─────────────────────────────── */
+.measurementsModal {
+  width: min(1080px, 100%);
+  max-height: min(820px, calc(100dvh - 32px));
+  border-radius: 28px;
+  padding: 18px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 16, 28, 0.96);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+
+.measurementsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.measurementsHeader span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.measurementsHeader h2 {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+/* ── Measurements form ──────────────────────────────── */
+.measurementsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.measurementsFormTop {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.measurementsDateLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.measurementsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.measurementsGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.measurementsSaveButton {
+  height: 40px;
+  border-radius: 14px;
+  padding: 0 18px;
+  align-self: flex-start;
+  color: #06100b;
+  background: linear-gradient(135deg, #89efbf, #57dfaa);
+  font-size: 13px;
+  font-weight: 900;
+  transition: box-shadow var(--ease), transform 0.12s ease;
+}
+
+.measurementsSaveButton:hover {
+  box-shadow: 0 0 22px rgba(137, 239, 191, 0.28);
+  transform: translateY(-2px);
+}
+
+/* ── Measurements history ───────────────────────────── */
+.measurementsHistory {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.measurementCard {
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.measurementCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.measurementCardHeader strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.measurementCardHeader button {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  transition: color var(--ease), background var(--ease);
+}
+
+.measurementCardHeader button:hover {
+  color: #ff7b7b;
+  background: rgba(255, 100, 100, 0.1);
+}
+
+.measurementCardBody {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.measurementField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.measurementField span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.measurementField strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.measurementsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.measurementsEmpty strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.measurementsEmpty span {
+  font-size: 12px;
+}
+
+/* ── Measurements responsive ────────────────────────── */
+@media (max-width: 860px) {
+  .measurementsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .measurementCardBody {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .measurementsModal {
+    max-height: calc(100dvh - 20px);
+    border-radius: 24px;
+    padding: 14px;
+  }
+
+  .measurementsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .measurementCardBody {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

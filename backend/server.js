@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const WEIGHTS_FILE = path.join(DATA_DIR, "pesos.json");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
+const MEASUREMENTS_FILE = path.join(DATA_DIR, "medidas.json");
 const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
 
 app.use(cors());
@@ -59,6 +60,15 @@ async function readConfig() {
 
 async function writeConfig(config) {
   await writeJson(CONFIG_FILE, config);
+}
+
+async function readMeasurements() {
+  return readJson(MEASUREMENTS_FILE, []);
+}
+
+async function writeMeasurements(measurements) {
+  const sorted = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
+  await writeJson(MEASUREMENTS_FILE, sorted);
 }
 
 app.get("/api/health", (req, res) => {
@@ -178,6 +188,7 @@ app.get("/api/export", async (req, res) => {
   try {
     const weights = await readWeights();
     const config = await readConfig();
+    const measurements = await readMeasurements();
 
     const today = new Date().toISOString().slice(0, 10);
 
@@ -186,7 +197,8 @@ app.get("/api/export", async (req, res) => {
       version: "1.0.0",
       exportedAt: new Date().toISOString(),
       config,
-      weights
+      weights,
+      measurements
     };
 
     res.setHeader("Content-Type", "application/json");
@@ -206,6 +218,91 @@ app.get("/api/export", async (req, res) => {
 function isValidDateString(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
+
+function normalizeMeasurement(body) {
+  const fields = ["waist", "abdomen", "chest", "hip", "arm", "thigh", "neck"];
+
+  if (!isValidDateString(body.date)) {
+    throw new Error("Data inválida.");
+  }
+
+  const measurement = { date: body.date };
+
+  fields.forEach((field) => {
+    const value = body[field];
+
+    if (value === undefined || value === null || value === "") {
+      measurement[field] = null;
+      return;
+    }
+
+    const parsed = Number(value);
+
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      throw new Error(`Medida inválida: ${field}`);
+    }
+
+    measurement[field] = parsed;
+  });
+
+  return measurement;
+}
+
+function normalizeMeasurements(measurements = []) {
+  if (!Array.isArray(measurements)) {
+    throw new Error("Medidas inválidas no backup.");
+  }
+
+  const map = new Map();
+
+  measurements.forEach((item) => {
+    const normalized = normalizeMeasurement(item);
+    map.set(normalized.date, normalized);
+  });
+
+  return Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+app.get("/api/medidas", async (_req, res) => {
+  try {
+    const measurements = await readMeasurements();
+    res.json(measurements);
+  } catch {
+    res.status(500).json({ message: "Erro ao ler as medidas." });
+  }
+});
+
+app.post("/api/medidas", async (req, res) => {
+  try {
+    const measurement = normalizeMeasurement(req.body);
+    const measurements = await readMeasurements();
+
+    const updated = [
+      ...measurements.filter((item) => item.date !== measurement.date),
+      measurement
+    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    await writeMeasurements(updated);
+
+    res.status(201).json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Erro ao salvar a medida." });
+  }
+});
+
+app.delete("/api/medidas/:date", async (req, res) => {
+  try {
+    const { date } = req.params;
+    const measurements = await readMeasurements();
+    const updated = measurements.filter((item) => item.date !== date);
+
+    await writeMeasurements(updated);
+
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: "Erro ao remover a medida." });
+  }
+});
 
 function normalizeWeights(weights) {
   const map = new Map();
@@ -249,7 +346,8 @@ function validateBackup(backup) {
 
   return {
     config: { ...backup.config, goal },
-    weights: normalizeWeights(backup.weights)
+    weights: normalizeWeights(backup.weights),
+    measurements: normalizeMeasurements(backup.measurements || [])
   };
 }
 
@@ -258,15 +356,14 @@ app.post("/api/import", async (req, res) => {
     const { mode = "replace", backup } = req.body;
 
     if (!["replace", "merge"].includes(mode)) {
-      return res.status(400).json({
-        message: "Modo de importação inválido."
-      });
+      return res.status(400).json({ message: "Modo de importação inválido." });
     }
 
     const normalized = validateBackup(backup);
 
     let finalWeights = normalized.weights;
     let finalConfig = normalized.config;
+    let finalMeasurements = normalized.measurements;
 
     if (mode === "merge") {
       const currentWeights = await readWeights();
@@ -275,7 +372,6 @@ app.post("/api/import", async (req, res) => {
       currentWeights.forEach((item) => {
         mergedMap.set(item.date, { date: item.date, weight: Number(item.weight) });
       });
-
       normalized.weights.forEach((item) => {
         mergedMap.set(item.date, item);
       });
@@ -286,21 +382,31 @@ app.post("/api/import", async (req, res) => {
 
       const currentConfig = await readConfig();
       finalConfig = { ...currentConfig, ...normalized.config };
+
+      const currentMeasurements = await readMeasurements();
+      const mergedMeasurements = new Map();
+
+      currentMeasurements.forEach((item) => mergedMeasurements.set(item.date, item));
+      normalized.measurements.forEach((item) => mergedMeasurements.set(item.date, item));
+
+      finalMeasurements = Array.from(mergedMeasurements.values()).sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
     }
 
     await writeWeights(finalWeights);
     await writeConfig(finalConfig);
+    await writeMeasurements(finalMeasurements);
 
     res.json({
       message: "Backup importado com sucesso.",
       mode,
       config: finalConfig,
-      weights: finalWeights
+      weights: finalWeights,
+      measurements: finalMeasurements
     });
   } catch (error) {
-    res.status(400).json({
-      message: error.message || "Erro ao importar backup."
-    });
+    res.status(400).json({ message: error.message || "Erro ao importar backup." });
   }
 });
 

@@ -26,12 +26,24 @@ import {
   Sparkles,
   Download,
   Upload,
+  Ruler,
 } from "lucide-react";
 import "./App.css";
 
 const WEIGHTS_API_URL = "/api/pesos";
 const CONFIG_API_URL = "/api/config";
+const MEASUREMENTS_API_URL = "/api/medidas";
 const WINDOWS = [7, 10, 15, 20, 30];
+
+const MEASUREMENT_FIELDS = [
+  { key: "waist", label: "Cintura" },
+  { key: "abdomen", label: "Abdômen" },
+  { key: "chest", label: "Peito" },
+  { key: "hip", label: "Quadril" },
+  { key: "arm", label: "Braço" },
+  { key: "thigh", label: "Coxa" },
+  { key: "neck", label: "Pescoço" },
+];
 
 function today() {
   return new Date().toISOString().split("T")[0];
@@ -94,6 +106,71 @@ function daysBetween(start, end) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function formatCm(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return `${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} cm`;
+}
+
+function formatDeltaCm(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  if (value > 0) return `-${formatCm(Math.abs(value))}`;
+  if (value < 0) return `+${formatCm(Math.abs(value))}`;
+  return formatCm(0);
+}
+
+function buildMeasurementAnalytics(measurements) {
+  const sorted = [...measurements].sort((a, b) => toDate(a.date) - toDate(b.date));
+
+  if (!sorted.length) {
+    return {
+      sorted,
+      first: null,
+      last: null,
+      currentWaist: null,
+      currentAbdomen: null,
+      waistReduction: null,
+      abdomenReduction: null,
+      totalReduction: null,
+      biggestReduction: null,
+    };
+  }
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  const reductions = MEASUREMENT_FIELDS.map(({ key, label }) => {
+    const firstVal = sorted.find((m) => m[key] !== null && m[key] !== undefined)?.[key] ?? null;
+    const lastVal = [...sorted].reverse().find((m) => m[key] !== null && m[key] !== undefined)?.[key] ?? null;
+    const value = firstVal !== null && lastVal !== null ? firstVal - lastVal : null;
+    return { key, label, firstVal, lastVal, value };
+  });
+
+  const totalReduction = reductions.reduce((sum, r) => {
+    return r.value !== null && r.value > 0 ? sum + r.value : sum;
+  }, 0);
+
+  const biggestReduction = reductions.reduce((best, r) => {
+    if (r.value === null) return best;
+    if (!best || r.value > best.value) return r;
+    return best;
+  }, null);
+
+  const waistR = reductions.find((r) => r.key === "waist");
+  const abdomenR = reductions.find((r) => r.key === "abdomen");
+
+  return {
+    sorted,
+    first,
+    last,
+    currentWaist: waistR?.lastVal ?? null,
+    currentAbdomen: abdomenR?.lastVal ?? null,
+    waistReduction: waistR?.value ?? null,
+    abdomenReduction: abdomenR?.value ?? null,
+    totalReduction,
+    biggestReduction,
+  };
 }
 
 function buildAnalytics(entries, goal) {
@@ -439,6 +516,12 @@ export default function App() {
   const [error, setError] = useState("");
   const [importStatus, setImportStatus] = useState("");
   const importInputRef = useRef(null);
+  const [measurements, setMeasurements] = useState([]);
+  const [measurementsOpen, setMeasurementsOpen] = useState(false);
+  const [measurementDate, setMeasurementDate] = useState(today());
+  const [measurementForm, setMeasurementForm] = useState({
+    waist: "", abdomen: "", chest: "", hip: "", arm: "", thigh: "", neck: "",
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -448,16 +531,19 @@ export default function App() {
     try {
       setError("");
 
-      const [weightsResponse, configResponse] = await Promise.all([
+      const [weightsResponse, configResponse, measurementsResponse] = await Promise.all([
         fetch(WEIGHTS_API_URL),
         fetch(CONFIG_API_URL),
+        fetch(MEASUREMENTS_API_URL),
       ]);
 
       const weightsData = await weightsResponse.json();
       const configData = await configResponse.json();
+      const measurementsData = await measurementsResponse.json();
 
       setEntries(Array.isArray(weightsData) ? weightsData : []);
       setGoal(String(configData.goal ?? 160));
+      setMeasurements(Array.isArray(measurementsData) ? measurementsData : []);
     } catch {
       setError("Não foi possível conectar ao backend.");
       setEntries([]);
@@ -475,6 +561,8 @@ export default function App() {
       label: formatShortDate(item.date),
     }));
   }, [analytics.sorted]);
+
+  const measurementAnalytics = useMemo(() => buildMeasurementAnalytics(measurements), [measurements]);
 
   const historyRows = useMemo(() => {
     return analytics.sorted
@@ -568,6 +656,37 @@ export default function App() {
     }
   }
 
+  function handleMeasurementChange(field, value) {
+    setMeasurementForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function handleSaveMeasurement(event) {
+    event.preventDefault();
+
+    const payload = { date: measurementDate, ...measurementForm };
+
+    const response = await fetch(MEASUREMENTS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const updated = await response.json();
+
+    if (!response.ok) {
+      throw new Error(updated.message || "Erro ao salvar medidas.");
+    }
+
+    setMeasurements(Array.isArray(updated) ? updated : []);
+    setMeasurementForm({ waist: "", abdomen: "", chest: "", hip: "", arm: "", thigh: "", neck: "" });
+  }
+
+  async function handleDeleteMeasurement(date) {
+    const response = await fetch(`${MEASUREMENTS_API_URL}/${date}`, { method: "DELETE" });
+    const updated = await response.json();
+    setMeasurements(Array.isArray(updated) ? updated : []);
+  }
+
   function handleOpenImport() {
     importInputRef.current?.click();
   }
@@ -597,6 +716,7 @@ export default function App() {
 
       setEntries(Array.isArray(result.weights) ? result.weights : []);
       setGoal(String(result.config?.goal ?? goal));
+      setMeasurements(Array.isArray(result.measurements) ? result.measurements : []);
       setImportStatus("Backup importado com sucesso.");
 
       event.target.value = "";
@@ -972,6 +1092,67 @@ export default function App() {
               </div>
             </div>
 
+            <div className="sectionBlock">
+              <div className="subHeader">
+                <span>Composição corporal</span>
+              </div>
+
+              {measurementAnalytics.last ? (
+                <>
+                  <div className="miniGrid">
+                    <div className="miniCard">
+                      <Ruler size={16} />
+                      <span>Cintura atual</span>
+                      <strong>{formatCm(measurementAnalytics.currentWaist)}</strong>
+                    </div>
+
+                    <div className="miniCard">
+                      <Ruler size={16} />
+                      <span>Abdômen atual</span>
+                      <strong>{formatCm(measurementAnalytics.currentAbdomen)}</strong>
+                    </div>
+
+                    <div className="miniCard">
+                      <TrendingDown size={16} />
+                      <span>Cintura</span>
+                      <strong>{formatDeltaCm(measurementAnalytics.waistReduction)}</strong>
+                    </div>
+
+                    <div className="miniCard">
+                      <Trophy size={16} />
+                      <span>Maior redução</span>
+                      <strong>
+                        {measurementAnalytics.biggestReduction
+                          ? `${measurementAnalytics.biggestReduction.label} · ${formatDeltaCm(measurementAnalytics.biggestReduction.value)}`
+                          : "—"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="measurementsButton"
+                    onClick={() => setMeasurementsOpen(true)}
+                  >
+                    <Ruler size={14} />
+                    Gerenciar medidas
+                  </button>
+                </>
+              ) : (
+                <div className="measurementEmpty">
+                  <span>Sem medidas registradas</span>
+                  <button
+                    type="button"
+                    className="measurementsButton"
+                    onClick={() => setMeasurementsOpen(true)}
+                  >
+                    <Ruler size={14} />
+                    Adicionar medidas
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="sectionBlock monthlySection">
               <div className="subHeader">
                 <span>Perda por mês</span>
@@ -1018,6 +1199,11 @@ export default function App() {
           >
             <Plus size={17} />
             Registrar
+          </button>
+
+          <button type="button" onClick={() => setMeasurementsOpen(true)}>
+            <Ruler size={17} />
+            Medidas
           </button>
 
           <button type="button" onClick={() => setHistoryOpen(true)}>
@@ -1084,6 +1270,91 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {measurementsOpen && (
+        <div className="modalOverlay">
+          <section className="measurementsModal">
+            <header className="measurementsHeader">
+              <div>
+                <span>Evolução corporal</span>
+                <h2>Medidas corporais</h2>
+              </div>
+
+              <button type="button" className="closeButton" onClick={() => setMeasurementsOpen(false)}>
+                <X size={18} />
+              </button>
+            </header>
+
+            <form className="measurementsForm" onSubmit={handleSaveMeasurement}>
+              <div className="measurementsFormTop">
+                <label className="measurementsDateLabel">
+                  <span>Data</span>
+                  <div className="inputBox">
+                    <Calendar size={15} />
+                    <input
+                      type="date"
+                      value={measurementDate}
+                      onChange={(e) => setMeasurementDate(e.target.value)}
+                    />
+                  </div>
+                </label>
+              </div>
+
+              <div className="measurementsGrid">
+                {MEASUREMENT_FIELDS.map(({ key, label }) => (
+                  <label key={key}>
+                    <span>{label}</span>
+                    <div className="inputBox">
+                      <Ruler size={14} />
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="0,0"
+                        value={measurementForm[key]}
+                        onChange={(e) => handleMeasurementChange(key, e.target.value)}
+                      />
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <button type="submit" className="measurementsSaveButton">Salvar medidas</button>
+            </form>
+
+            <div className="measurementsHistory">
+              {[...measurementAnalytics.sorted].reverse().map((entry) => (
+                <div className="measurementCard" key={entry.date}>
+                  <div className="measurementCardHeader">
+                    <strong>{formatFullDate(entry.date)}</strong>
+                    <button type="button" onClick={() => handleDeleteMeasurement(entry.date)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div className="measurementCardBody">
+                    {MEASUREMENT_FIELDS.map(({ key, label }) => (
+                      entry[key] !== null && entry[key] !== undefined ? (
+                        <div key={key} className="measurementField">
+                          <span>{label}</span>
+                          <strong>{formatCm(entry[key])}</strong>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {measurementAnalytics.sorted.length === 0 && (
+                <div className="measurementsEmpty">
+                  <Ruler size={28} />
+                  <strong>Nenhuma medida registrada</strong>
+                  <span>Use o formulário acima para adicionar sua primeira medição.</span>
+                </div>
+              )}
             </div>
           </section>
         </div>
