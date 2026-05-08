@@ -203,6 +203,107 @@ app.get("/api/export", async (req, res) => {
   }
 });
 
+function isValidDateString(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function normalizeWeights(weights) {
+  const map = new Map();
+
+  weights.forEach((item) => {
+    const date = item.date;
+    const weight = Number(item.weight);
+
+    if (!isValidDateString(date) || Number.isNaN(weight) || weight <= 0) {
+      throw new Error("Peso inválido no backup.");
+    }
+
+    map.set(date, { date, weight });
+  });
+
+  return Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function validateBackup(backup) {
+  if (!backup || typeof backup !== "object") {
+    throw new Error("Backup inválido.");
+  }
+
+  if (backup.app !== "orbis-peso") {
+    throw new Error("Arquivo não pertence ao Orbis Peso.");
+  }
+
+  if (!backup.config || typeof backup.config !== "object") {
+    throw new Error("Configurações inválidas no backup.");
+  }
+
+  const goal = Number(backup.config.goal);
+
+  if (Number.isNaN(goal) || goal <= 0) {
+    throw new Error("Meta inválida no backup.");
+  }
+
+  if (!Array.isArray(backup.weights)) {
+    throw new Error("Histórico de pesos inválido no backup.");
+  }
+
+  return {
+    config: { ...backup.config, goal },
+    weights: normalizeWeights(backup.weights)
+  };
+}
+
+app.post("/api/import", async (req, res) => {
+  try {
+    const { mode = "replace", backup } = req.body;
+
+    if (!["replace", "merge"].includes(mode)) {
+      return res.status(400).json({
+        message: "Modo de importação inválido."
+      });
+    }
+
+    const normalized = validateBackup(backup);
+
+    let finalWeights = normalized.weights;
+    let finalConfig = normalized.config;
+
+    if (mode === "merge") {
+      const currentWeights = await readWeights();
+      const mergedMap = new Map();
+
+      currentWeights.forEach((item) => {
+        mergedMap.set(item.date, { date: item.date, weight: Number(item.weight) });
+      });
+
+      normalized.weights.forEach((item) => {
+        mergedMap.set(item.date, item);
+      });
+
+      finalWeights = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+
+      const currentConfig = await readConfig();
+      finalConfig = { ...currentConfig, ...normalized.config };
+    }
+
+    await writeWeights(finalWeights);
+    await writeConfig(finalConfig);
+
+    res.json({
+      message: "Backup importado com sucesso.",
+      mode,
+      config: finalConfig,
+      weights: finalWeights
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message || "Erro ao importar backup."
+    });
+  }
+});
+
 app.use(express.static(FRONTEND_DIST));
 
 app.get(/.*/, (req, res) => {

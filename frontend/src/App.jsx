@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -25,6 +25,7 @@ import {
   BarChart3,
   Sparkles,
   Download,
+  Upload,
 } from "lucide-react";
 import "./App.css";
 
@@ -436,6 +437,8 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeView, setActiveView] = useState("chart");
   const [error, setError] = useState("");
+  const [importStatus, setImportStatus] = useState("");
+  const importInputRef = useRef(null);
 
   useEffect(() => {
     loadInitialData();
@@ -562,6 +565,46 @@ export default function App() {
       }, 1800);
     } catch {
       setError("Erro ao salvar a meta.");
+    }
+  }
+
+  function handleOpenImport() {
+    importInputRef.current?.click();
+  }
+
+  async function handleImportFile(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      setImportStatus("");
+
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      const response = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "replace", backup })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Erro ao importar backup.");
+      }
+
+      setEntries(Array.isArray(result.weights) ? result.weights : []);
+      setGoal(String(result.config?.goal ?? goal));
+      setImportStatus("Backup importado com sucesso.");
+
+      event.target.value = "";
+
+      setTimeout(() => setImportStatus(""), 2500);
+    } catch (error) {
+      setImportStatus(error.message || "Erro ao importar backup.");
+      event.target.value = "";
     }
   }
 
@@ -994,6 +1037,11 @@ export default function App() {
               </div>
 
               <div className="historyActions">
+                <button type="button" className="importButton" onClick={handleOpenImport}>
+                  <Upload size={15} />
+                  Importar backup
+                </button>
+
                 <button type="button" className="exportButton" onClick={handleExportData}>
                   <Download size={15} />
                   Exportar dados
@@ -1004,6 +1052,16 @@ export default function App() {
                 </button>
               </div>
             </header>
+
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hiddenFileInput"
+              onChange={handleImportFile}
+            />
+
+            {importStatus && <div className="importStatus">{importStatus}</div>}
 
             <div className="historyTable">
               <div className="historyTableHead">

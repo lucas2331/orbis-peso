@@ -864,6 +864,39 @@ input:focus-visible {
   transform: translateY(-2px);
 }
 
+.hiddenFileInput {
+  display: none;
+}
+
+.importButton {
+  height: 40px;
+  border-radius: 14px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f7f9fc;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.importButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.importStatus {
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: #89efbf;
+  background: rgba(137, 239, 191, 0.08);
+  border: 1px solid rgba(137, 239, 191, 0.16);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .closeButton {
   width: 40px;
   height: 40px;
@@ -1281,6 +1314,7 @@ input:focus-visible {
     align-items: flex-end;
   }
 
+  .importButton,
   .exportButton {
     height: 36px;
     padding: 0 12px;
