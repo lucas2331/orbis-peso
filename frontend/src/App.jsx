@@ -732,6 +732,33 @@ export default function App() {
     window.open("/api/export", "_blank");
   }
 
+  if (loading) {
+    return (
+      <div className="splash">
+        <div className="splashGlow splashGlow1" />
+        <div className="splashGlow splashGlow2" />
+        <div className="splashGlow splashGlow3" />
+
+        <div className="splashContent">
+          <div className="splashIcon">
+            <Activity size={32} />
+          </div>
+
+          <div className="splashText">
+            <strong>Orbis</strong>
+            <span>Controle de peso</span>
+          </div>
+
+          <div className="splashDots">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="app">
       <section className="shell">

@@ -86,6 +86,135 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
+/* ── Splash screen ──────────────────────────────────── */
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splashDot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.7); }
+  40%           { opacity: 1;   transform: scale(1); }
+}
+
+@keyframes splashIconPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(123, 238, 191, 0); }
+  50%      { box-shadow: 0 0 40px 8px rgba(123, 238, 191, 0.18); }
+}
+
+@keyframes splashGlowDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(30px, -20px) scale(1.08); }
+  66%      { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(155deg, #060e1c 0%, #060a14 45%, #040710 100%);
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.splashGlow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: splashGlowDrift 8s ease-in-out infinite;
+}
+
+.splashGlow1 {
+  width: 480px;
+  height: 480px;
+  top: -120px;
+  left: -100px;
+  background: radial-gradient(circle, rgba(100, 220, 170, 0.12) 0%, transparent 70%);
+  animation-delay: 0s;
+}
+
+.splashGlow2 {
+  width: 400px;
+  height: 400px;
+  bottom: -80px;
+  right: -80px;
+  background: radial-gradient(circle, rgba(80, 110, 240, 0.1) 0%, transparent 70%);
+  animation-delay: -3s;
+}
+
+.splashGlow3 {
+  width: 300px;
+  height: 300px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(123, 238, 191, 0.05) 0%, transparent 70%);
+  animation-delay: -6s;
+}
+
+.splashContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: splashFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.splashIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: rgba(123, 238, 191, 0.08);
+  border: 1px solid rgba(123, 238, 191, 0.22);
+  animation: splashIconPulse 2.4s ease-in-out infinite;
+}
+
+.splashText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.splashText strong {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.splashText span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+}
+
+.splashDots {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.splashDots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: splashDot 1.4s ease-in-out infinite;
+}
+
+.splashDots span:nth-child(2) { animation-delay: 0.2s; }
+.splashDots span:nth-child(3) { animation-delay: 0.4s; }
+
 /* ── App shell ──────────────────────────────────────── */
 .app {
   width: 100%;
